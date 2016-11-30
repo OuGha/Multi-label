@@ -11,6 +11,8 @@ from scipy.misc import comb
 #from ..multi_target_models.exceptions import TargetShapeError
 from  label_powerset import LabelPowersetClassifier
 from sklearn import tree
+from  ForwardThresholdClibration import applayonethreshold
+
 
 
 
@@ -31,44 +33,84 @@ class Rakel(object):
         self.n_estimators = m
         self.n_targets_ = 0
         self.regressors_ = []
+        self.klps_ = None
 
 
     def klabesetGeneration__(m, Q, K=3):
-        print("comniantion " + str(comb(Q, K, exact=False)))
-        print("m " + str(m))
         if m> comb(Q, K, exact=False):
             print(comb(Q, K, exact=False))
-            raise Exception("m> que possibilities.")
         klabelsets = []
 
         while(len(klabelsets) < m):
             x = np.random.choice(range(Q), size=K, replace=False, p=None).astype(int)
             x = np.sort(x)
             xs = ",".join([str(i) for i in x])
-            print(not any(xs in s for s in klabelsets))
             if not any(xs in s for s in klabelsets):
                 klabelsets.append(xs)
 
         return np.array([string.split(",") for string in klabelsets]).astype(int)
 
     def fit(self, X, Y):
-        print("local0")
+        #print("local0")
         if len(Y.shape)==2:
-            print("local1")
+            #print("local1")
             self.n_targets_ = int(Y.shape[1])
             self.estimators_ = []
             nX = X.shape[0]
-            klps = Rakel.klabesetGeneration__(self.n_estimators, self.n_targets_, self.k)
-            print("local3")
+            self.klps_ = Rakel.klabesetGeneration__(self.n_estimators, self.n_targets_, self.k)
+            #print("local3")
             for i in range(0, self.n_estimators):
-                print("local4")
+                #print("local4")
                 lp = LabelPowersetClassifier(self.model)
-                lp.fit(X, Y[:, klps[i]])
+                #print("arrrr")
+                #print(Y[:, self.klps_[i]])
+                lp.fit(X, Y[:, self.klps_[i]])
 
                 self.estimators_.append(lp)
             return self
         else:
             raise Exception("The target musut be a two dimentions matrix you can use MultiTaret_Regressors for a vector target.")
+
+    def predict_proba(self, Xtest):
+        """
+        Predict the regression value for Xtest.
+
+        Parameters
+        ----------
+        Xtest : array-like of shape = [n_samples, n_features].
+
+        Returns
+        -------
+        Predictions : an array whith the predict values of
+            shape = [n_samplesn_targets] (n_targets = self.Q_).
+        """
+        nt = Xtest.shape[0]
+        V = np.zeros((self.n_targets_))
+        Predictions = np.zeros((nt, self.n_targets_))
+        for i in range(0, self.n_estimators):
+            P = self.estimators_[i].predict(Xtest)
+            Predictions[:, self.klps_[i]] = Predictions[:, self.klps_[i]] + P
+            V[self.klps_[i]]  = V[self.klps_[i]]  + np.ones((1, self.k))
+
+        for i in range(0, self.n_estimators):
+            Predictions[:, i] = Predictions[:, i]/V[i]
+        return Predictions
+
+    def predict(self, Xtest):
+        """
+        Predict Xtest the probabilities
+
+        Parameters
+        ----------
+        Xtest : array-like with shape (n_samples, n_features).
+
+        Returns
+        -------
+        predictions : an array with shape (n_samples, n_targets)
+                      the predict values.
+        """
+        Predictions = self.predict_proba( Xtest)
+        return applayonethreshold(Predictions, t=0.5)
 
 
 if __name__ == '__main__':
@@ -98,8 +140,8 @@ if __name__ == '__main__':
     """
 
     r = Rakel.klabesetGeneration__(20, 6, 3)
-    print(r)
-    print(r[10])
+#    print(r)
+#    print(r[10])
 
 
 
@@ -121,105 +163,10 @@ if __name__ == '__main__':
                   [1, 1, 0],
                   [1, 1, 1],
                   [1, 1, 1]])
-    bmodel = tree.DecisionTreeRegressor(min_samples_leaf=1)
-    sml = Rakel(bmodel, 2, 2)
+    bmodel = tree.DecisionTreeClassifier(min_samples_leaf=1)
+    sml = Rakel(bmodel, 3, 2)
     sml.fit(X, Y)
-    #npt.assert_array_equal(sml.predict(X), Y)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def fit(self, X, Y):
-        """
-        Build a multi-label regression model from the training set (X, Y).
-
-        Parameters
-        ----------
-        model : the base-model
-        X : array-like, with shape (n_samples, n_features).
-
-        Y : array-like, with shape (n_samples, n_targets);
-            The target values are real numbers as in classical regression.
-
-        Returns
-        -------
-        self : object
-            Returns self.
-        """
-
-        if len(Y.shape) == 1:
-            self.n_targets_ = 1
-            self.regressors_ = self.model.fit(X, Y)
-        elif len(Y.shape) == 2:
-            self.n_targets_ = int(Y.shape[1])
-            self.regressors_ = []
-            for i in range(self.n_targets_):
-                regressor = copy.deepcopy(self.model)
-                regressor = regressor.fit(X, Y[:, i])
-                self.regressors_.append(regressor)
-        else:
-            pass
-            #raise TargetShapeError("The target must be a two dimensions matrix or a vector.")
-
-        return self
-
-    def predict(self, Xtest):
-        """
-        Predict Xtest.
-
-        Parameters
-        ----------
-        Xtest : array-like with shape (n_samples, n_features).
-
-        Returns
-        -------
-        predictions : an array with shape (n_samples, n_targets)
-                      the predict values.
-        """
-        nt = Xtest.shape[0]
-        predictions = -1 * np.ones((nt, self.n_targets_))
-        if self.n_targets_ == 1:
-            predictions = self.regressors_.predict(Xtest)
-            return predictions
-        else:
-            for i in range(self.n_targets_):
-                predictions[:, i] = self.regressors_[i].predict(Xtest)
-            return predictions
-
-
-    def predict_proba(self, Xtest):
-        """
-        Predict Xtest the probabilities
-
-        Parameters
-        ----------
-        Xtest : array-like with shape (n_samples, n_features).
-
-        Returns
-        -------
-        predictions : an array with shape (n_samples, n_targets)
-                      the predict values.
-        """
-        nt = Xtest.shape[0]
-        predictions = -1 * np.ones((nt, self.n_targets_))
-        if self.n_targets_ == 1:
-            predictions = self.regressors_.predict_proba(Xtest)
-            return predictions
-        else:
-            for i in range(self.n_targets_):
-                predictions[:, i] = self.regressors_[i].predict_proba(Xtest)
-            return predictions
+    sml.predict(X)
+    print(sml.predict(X))
+    print(sml.predict_proba(X))
 
