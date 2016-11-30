@@ -42,7 +42,7 @@ class Rakel(object):
         klabelsets = []
 
         while(len(klabelsets) < m):
-            x = np.random.choice(range(Q), size=3, replace=False, p=None).astype(int)
+            x = np.random.choice(range(Q), size=K, replace=False, p=None).astype(int)
             x = np.sort(x)
             xs = ",".join([str(i) for i in x])
             print(not any(xs in s for s in klabelsets))
