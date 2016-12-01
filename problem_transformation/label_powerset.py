@@ -2,7 +2,7 @@ import numpy as np
 import numpy.testing as npt
 
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+#from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, hamming_loss, zero_one_loss
 
 from sklearn.datasets import make_multilabel_classification
@@ -40,10 +40,11 @@ class LabelPowersetClassifier(object):
 
 
 if __name__ == '__main__':
+    """
     X, Y = make_multilabel_classification(n_samples=10000, n_features=20, n_classes=1000)
 
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-
+    """
     X = np.array([[411, 500, 426],
                   [100, -11, -96],
                   [125, 900, .00],
@@ -60,14 +61,26 @@ if __name__ == '__main__':
                   [1, 1, 0],
                   [1, 1, 1],
                   [1, 1, 1]])
-    lp = LabelPowersetClassifier(base_estimator=RandomForestClassifier(n_estimators=50))
-    lp.fit(X_train, Y_train)
-    #print(lp.predict(X))
 
+
+    Y = np.array([[0, 0],
+                  [0, 1],
+                  [0, 0],
+                  [0, 1],
+                  [1, 0],
+                  [1, 0],
+                  [1, 1],
+                  [1, 1]])
+
+
+    lp = LabelPowersetClassifier(base_estimator=RandomForestClassifier(n_estimators=50))
+    lp.fit(X, Y)
+    print(lp.predict(X))
+    """
     Y_pred = lp.predict(X_test)
 
     print("Zero One Loss {}".format(zero_one_loss(Y_test, Y_pred)))
     print("Hamming Loss {}".format(hamming_loss(Y_test, Y_pred)))
     print("F1 Score {}".format(f1_score(Y_test, Y_pred, average='macro')))
-
+    """
 
