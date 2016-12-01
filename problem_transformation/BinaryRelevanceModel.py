@@ -10,6 +10,7 @@ import numpy as np
 
 
 class BinaryRelevance(object):
+    # TODO verifier si la class doit heriter de object
     """
     The multi-label BR model.
 
